@@ -334,7 +334,8 @@ int main(int argc, char* argv[]) {
 									send_ERROR(sd_new, 5, NULL, (struct sockaddr* )&requesting_host, request_len);
 								}
 								if (get_opcode(&receive_p) == op_ERROR) {
-									// do something
+									//if after sending a packet, an error is returned, continue sending the packet?
+									continue;
 								}
 								
 								if (get_opcode(&receive_p) != op_ACK){
