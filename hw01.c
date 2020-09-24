@@ -150,18 +150,16 @@ FILE* checkFilenameMode(PACKET* p) {
 }
 
 
-unsigned short int get_dest_port(Port* arr, int arr_size) {
+int get_dest_port(Port* arr, unsigned short int port_range_start, unsigned short int port_range_end) {
 	// the next highest port?
 
 	int highest = 0;
-	for (int i = arr_size - 1; i >= 0; --i) {
-		if (highest == 2)	
-	 		return arr[i].port;
+	for (int i = port_range_start; i <= port_range_end; i++) {	 		
 	 	if (arr[i].pid == 0)
-	 		highest = highest + 1;
+	 		return arr[i].port;
 		// printf("highest = %d\n", highest);
 	}
-	return arr[0].port;
+	return -1; //if all ports are in use, return an error
 }
 
 
@@ -267,7 +265,11 @@ int main(int argc, char* argv[]) {
 				int n = send_ERROR(sd, 1, NULL, (struct sockaddr* )&requesting_host, request_len);	// error num
 			}else{
 				// fork to handle RRQ
-				unsigned short int dest_port = get_dest_port(arr, arr_size);
+				int dest_port = get_dest_port(arr, port_range_start, port_range_end);
+				if(dest_port == -1){
+					perror("Cannot allocate a port, all ports in use");
+					continue;
+				}
 				pid_t pid = fork();
 				if (pid > 0)
 					set_pid(arr, dest_port , arr_size, pid);
