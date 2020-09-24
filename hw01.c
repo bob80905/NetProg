@@ -155,8 +155,10 @@ int get_dest_port(Port* arr, unsigned short int port_range_start, unsigned short
 
 	int highest = 0;
 	for (int i = port_range_start; i <= port_range_end; i++) {	 		
-	 	if (arr[i].pid == 0)
+	 	if (arr[i].pid == 0) {
+			arr[i].pid = -1;	// -1 means it is reserved for a later pid assignment
 	 		return arr[i].port;
+		}
 		// printf("highest = %d\n", highest);
 	}
 	return -1; //if all ports are in use, return an error
