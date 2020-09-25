@@ -2,7 +2,7 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 
-#include "unp.h"
+#include "lib/unp.h"
 
 /* error code
 
@@ -272,8 +272,11 @@ int main(int argc, char* argv[]) {
 					continue;
 				}
 				pid_t pid = fork();
-				if (pid > 0)
+				if (pid > 0){
 					set_pid(arr, dest_port , arr_size, pid);
+					fclose(fd);
+				}
+
 				if (pid == 0) {
 					close(sd);
 					// handle_RRQ(fd, dest_port, (struct sockaddr_in*)&requesting_host, request_len,(struct sockaddr_in*)&responding_host, sizeof( responding_host ),&receive_p);
@@ -321,12 +324,15 @@ int main(int argc, char* argv[]) {
 							FD_ZERO( &readfds );
 							FD_SET(sd_new, &readfds);
 							select( FD_SETSIZE, &readfds, NULL, NULL, &timeout);
+							timeout.tv_sec = 1;
+							timeout.tv_usec = 0;
 
 							if (FD_ISSET(sd_new, &readfds)) {	
 								
 								memset (&receive_p, 0, sizeof(receive_p));	// will reuse the packet p,  zero out the memory
 								recvfrom(sd_new, &receive_p, sizeof(receive_p), 0, (struct sockaddr *)&requesting_host, &request_len);
 								
+
 	    	   					// record the new ip and port
 	    	   					char* request_ip_new = inet_ntoa(requesting_host.sin_addr);
 								unsigned short int request_port_new = ntohs(requesting_host.sin_port);
@@ -335,10 +341,14 @@ int main(int argc, char* argv[]) {
 									send_ERROR(sd_new, 5, NULL, (struct sockaddr* )&requesting_host, request_len);
 								}
 								if (get_opcode(&receive_p) == op_ERROR) {
+
 									//if after sending a packet, an error is returned, continue sending the packet?
 									continue;
 								}
-								
+								if(get_opcode(&receive_p) == op_RRQ){
+									send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
+
+								}
 								if (get_opcode(&receive_p) != op_ACK){
 									//printf("opcode is not ack\n");
 									send_ERROR(sd_new, 4, NULL, (struct sockaddr* )&requesting_host, request_len);	
@@ -378,7 +388,7 @@ int main(int argc, char* argv[]) {
 			strcpy(filename, filename_mode);
 			//printf("%s\n", filename);
 
-			FILE* f = fopen(filename, "a");
+			FILE* f = fopen(filename, "w");
 			free(filename);
 			if (!f){
 				printf("ERROR: fopen failed.\n");
@@ -386,8 +396,10 @@ int main(int argc, char* argv[]) {
 			}
 
 			pid_t pid = fork();
-			if (pid > 0)
+			if (pid > 0){
 				set_pid(arr, dest_port , arr_size, pid);
+				fclose(f);
+			}
 
 			if (pid == 0) {
 				close(sd);
@@ -419,7 +431,7 @@ int main(int argc, char* argv[]) {
 					timeout.tv_usec = 0;
 
 					int count = 0;
-					while(1) {
+					while(1) { //continue acking a packet until we get the next packet
 
 						if (count == 10) { 
 							close(sd_new); 
@@ -434,6 +446,11 @@ int main(int argc, char* argv[]) {
 						select( FD_SETSIZE, &readfds, NULL, NULL, &timeout);
 						timeout.tv_sec = 1;
 						timeout.tv_usec = 0;
+
+						if(count > 0){
+							send_ACK(sd_new, blockNum, (struct sockaddr* )&requesting_host, request_len);
+						}
+
 
 						if (FD_ISSET(sd_new, &readfds)) {	
 							
@@ -453,8 +470,12 @@ int main(int argc, char* argv[]) {
 								//if after sending a packet, an error is returned, continue sending the packet?
 								continue;
 							}
+
+							if(get_opcode(&receive_p) == op_WRQ){
+								send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
+							}
 							
-							if (get_opcode(&receive_p) == op_DATA){
+							if (get_opcode(&receive_p) == op_DATA && ntohs(receive_p.type.data.blockNum) == blockNum){
 								//printf("Sending ACK\n");
 								//printf("%s\n, %d\n",  receive_p.type.data.data, bytes_received);
 								int length = strlen(receive_p.type.data.data); 
@@ -465,6 +486,7 @@ int main(int argc, char* argv[]) {
 								}
 								//printf("Received: %s\n", receive_p.type.data.data);
 								send_ACK(sd_new, blockNum, (struct sockaddr* )&requesting_host, request_len);
+								break;
 
 							}
 				
@@ -481,7 +503,7 @@ int main(int argc, char* argv[]) {
 				return EXIT_SUCCESS;
 
 			}
-		
+
 		}
 
 	}
