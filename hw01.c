@@ -245,7 +245,15 @@ int main(int argc, char* argv[]) {
 		struct sockaddr_in requesting_host;
 		socklen_t request_len = sizeof(requesting_host);
 
+		initial_listen:;
 		ssize_t n = recvfrom(sd, &receive_p, sizeof(receive_p), 0, (struct sockaddr *)&requesting_host, &request_len); // cast
+		if(n < 0 && errno == EINTR){
+			goto initial_listen;
+		}
+		if (n < 0 && errno != EINTR){
+			perror("Recvfrom failed.\n");
+			exit(1);
+		}
 		if ( n == -1 ) {
       		perror( "recvfrom() failed\n" );
     	}
@@ -330,8 +338,15 @@ int main(int argc, char* argv[]) {
 							if (FD_ISSET(sd_new, &readfds)) {	
 								
 								memset (&receive_p, 0, sizeof(receive_p));	// will reuse the packet p,  zero out the memory
-								recvfrom(sd_new, &receive_p, sizeof(receive_p), 0, (struct sockaddr *)&requesting_host, &request_len);
-								
+								rrq_initial_recv:;
+								int bytes_received = recvfrom(sd_new, &receive_p, sizeof(receive_p), 0, (struct sockaddr *)&requesting_host, &request_len);
+								if(bytes_received < 0 && errno == EINTR){
+									goto rrq_initial_recv;
+								}
+								if (bytes_received < 0 && errno != EINTR){
+									perror("Recvfrom failed.\n");
+									exit(1);
+								}
 
 	    	   					// record the new ip and port
 	    	   					char* request_ip_new = inet_ntoa(requesting_host.sin_addr);
@@ -455,7 +470,16 @@ int main(int argc, char* argv[]) {
 						if (FD_ISSET(sd_new, &readfds)) {	
 							
 							memset (&receive_p, 0, sizeof(receive_p));	// will reuse the packet p,  zero out the memory
+							wrq_initial_recv:;
 							int bytes_received = recvfrom(sd_new, &receive_p, sizeof(receive_p), 0, (struct sockaddr *)&requesting_host, &request_len);
+							if(bytes_received < 0 && errno == EINTR){
+								printf("EINTR block\n");
+								goto wrq_initial_recv;
+							}
+							if (bytes_received < 0 && errno != EINTR){
+								perror("Recvfrom failed.\n");
+								exit(1);
+							}
 							if (bytes_received < 512) {
 								finished = 1;
 							}
