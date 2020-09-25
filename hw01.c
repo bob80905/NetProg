@@ -457,7 +457,8 @@ int main(int argc, char* argv[]) {
 							if (get_opcode(&receive_p) == op_DATA){
 								//printf("Sending ACK\n");
 								//printf("%s\n, %d\n",  receive_p.type.data.data, bytes_received);
-								int result = fwrite(receive_p.type.data.data, 1, bytes_received, f);
+								int length = strlen(receive_p.type.data.data); 
+								int result = fwrite(receive_p.type.data.data, 1, length, f);
 								fflush(f);
 								if(result < 0){
 									printf("ERROR, failed to write string to file\n");
