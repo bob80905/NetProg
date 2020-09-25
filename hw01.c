@@ -300,8 +300,6 @@ int main(int argc, char* argv[]) {
 				        return EXIT_FAILURE;
 					}
 				    
-					send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
-
 					int blockNum = 0;
 					int finished = 0;
 
@@ -360,10 +358,7 @@ int main(int argc, char* argv[]) {
 									//if after sending a packet, an error is returned, continue sending the packet?
 									continue;
 								}
-								if(get_opcode(&receive_p) == op_RRQ){
-									send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
-
-								}
+								
 								if (get_opcode(&receive_p) != op_ACK){
 									//printf("opcode is not ack\n");
 									send_ERROR(sd_new, 4, NULL, (struct sockaddr* )&requesting_host, request_len);	
