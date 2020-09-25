@@ -2,7 +2,7 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 
-#include "lib/unp.h"
+#include "unp.h"
 
 /* error code
 
@@ -37,14 +37,14 @@ typedef enum {
 // opcode, filename, 0, mode, 0
 typedef struct {
 	uint16_t opcode;
-	uint8_t filenameMode[MAX_DATA_SIZE];
+	char filenameMode[MAX_DATA_SIZE];
 }RRQ;
 
 
 // opcode, filename, 0, mode, 0
 typedef struct {
 	uint16_t opcode;
-	uint8_t filenameMode[MAX_DATA_SIZE];
+	char filenameMode[MAX_DATA_SIZE];
 }WRQ;
 
 
@@ -153,7 +153,6 @@ FILE* checkFilenameMode(PACKET* p) {
 int get_dest_port(Port* arr, unsigned short int port_range_start, unsigned short int port_range_end) {
 	// the next highest port?
 
-	int highest = 0;
 	for (int i = port_range_start; i <= port_range_end; i++) {	 		
 	 	if (arr[i].pid == 0) {
 			arr[i].pid = -1;	// -1 means it is reserved for a later pid assignment
@@ -258,13 +257,13 @@ int main(int argc, char* argv[]) {
 		// check opcode, filename, mode
 		unsigned short int opcode = get_opcode(&receive_p);
 		if(opcode != op_RRQ && opcode != op_WRQ) {
-			int n = send_ERROR(sd, 4, NULL, (struct sockaddr* )&requesting_host, request_len);	
+			send_ERROR(sd, 4, NULL, (struct sockaddr* )&requesting_host, request_len);	
 			continue;
 		}
 		else if (opcode == op_RRQ){
 			FILE* fd;
 			if ((fd = checkFilenameMode(&receive_p)) == NULL){
-				int n = send_ERROR(sd, 1, NULL, (struct sockaddr* )&requesting_host, request_len);	// error num
+				send_ERROR(sd, 1, NULL, (struct sockaddr* )&requesting_host, request_len);	// error num
 			}else{
 				// fork to handle RRQ
 				int dest_port = get_dest_port(arr, port_range_start, port_range_end);
@@ -290,7 +289,7 @@ int main(int argc, char* argv[]) {
 				        return EXIT_FAILURE;
 					}
 				    
-					ssize_t n = send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
+					send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
 
 					int blockNum = 0;
 					int finished = 0;
@@ -321,7 +320,7 @@ int main(int argc, char* argv[]) {
 							fd_set readfds;
 							FD_ZERO( &readfds );
 							FD_SET(sd_new, &readfds);
-							int ready = select( FD_SETSIZE, &readfds, NULL, NULL, &timeout);
+							select( FD_SETSIZE, &readfds, NULL, NULL, &timeout);
 
 							if (FD_ISSET(sd_new, &readfds)) {	
 								
@@ -356,15 +355,17 @@ int main(int argc, char* argv[]) {
 					} 	  // while(!finished)
 
 					close(sd_new);
+					fclose(fd);
 					//printf("blocks all sent\n");
 					return EXIT_SUCCESS;
 
 				}	// child process
 			}
+
 		}
 		else if (opcode == op_WRQ){
 			
-			printf("Received WRQ request.\n");
+			//printf("Received WRQ request.\n");
 			// fork to handle RRQ
 			int dest_port = get_dest_port(arr, port_range_start, port_range_end);
 			if(dest_port == -1){
@@ -389,8 +390,8 @@ int main(int argc, char* argv[]) {
 			        return EXIT_FAILURE;
 				}
 			    
-				ssize_t n = send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
-				printf("ACKing WRQ request\n");
+				send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
+				//printf("ACKing WRQ request\n");
 				int blockNum = 0;
 				int finished = 0;
 				FILE* f = fopen("hello_remote.txt", "a");
@@ -420,7 +421,7 @@ int main(int argc, char* argv[]) {
 						fd_set readfds;
 						FD_ZERO( &readfds );
 						FD_SET(sd_new, &readfds);
-						int ready = select( FD_SETSIZE, &readfds, NULL, NULL, &timeout);
+						select( FD_SETSIZE, &readfds, NULL, NULL, &timeout);
 						timeout.tv_sec = 1;
 						timeout.tv_usec = 0;
 
@@ -444,14 +445,14 @@ int main(int argc, char* argv[]) {
 							}
 							
 							if (get_opcode(&receive_p) == op_DATA){
-								printf("Sending ACK\n");
+								//printf("Sending ACK\n");
 								
 								int result = fputs(receive_p.type.data.data, f);
 								if(result < 0){
 									printf("ERROR, failed to write string to file\n");
 								}
-								printf("Received: %s\n", receive_p.type.data.data);
-								ssize_t n = send_ACK(sd_new, blockNum, (struct sockaddr* )&requesting_host, request_len);
+								//printf("Received: %s\n", receive_p.type.data.data);
+								send_ACK(sd_new, blockNum, (struct sockaddr* )&requesting_host, request_len);
 
 							}
 				
@@ -463,7 +464,8 @@ int main(int argc, char* argv[]) {
 				} 	  // while(!finished)
 
 				close(sd_new);
-				printf("blocks all received\n");
+				fclose(f);
+				//printf("blocks all received\n");
 				return EXIT_SUCCESS;
 
 			}
