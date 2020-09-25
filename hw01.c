@@ -150,6 +150,7 @@ FILE* checkFilenameMode(PACKET* p) {
 }
 
 
+
 int get_dest_port(Port* arr, unsigned short int port_range_start, unsigned short int port_range_end) {
 	// the next highest port?
 
@@ -394,12 +395,18 @@ int main(int argc, char* argv[]) {
 				//printf("ACKing WRQ request\n");
 				int blockNum = 0;
 				int finished = 0;
-				FILE* f = fopen("hello_remote.txt", "a");
+
+				char* filename_mode = receive_p.type.wrq.filenameMode;
+				char* filename = calloc(1024, sizeof(char));
+				strcpy(filename, filename_mode);
+				//printf("%s\n", filename);
+
+				FILE* f = fopen(filename, "a");
+				free(filename);
 				if (!f){
 					printf("ERROR: fopen failed.\n");
 					exit(1);
 				}
-
 				
 				while(finished == 0){
 					blockNum = blockNum + 1;
