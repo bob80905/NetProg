@@ -344,9 +344,7 @@ int main(int argc, char* argv[]) {
 									printf("opcode is not ack\n");
 									send_ERROR(sd_new, 4, NULL, (struct sockaddr* )&requesting_host, request_len);	
 								}
-								if (get_opcode(&receive_p) == op_ACK && ntohs(receive_p.type.ack.blockNum) != blockNum) {
-									send_ERROR(sd_new, 4, NULL, (struct sockaddr* )&requesting_host, request_len);	//errornumber???
-								}
+								
 								if (get_opcode(&receive_p) == op_ACK && ntohs(receive_p.type.ack.blockNum) == blockNum) {
 									break;		// go to send next block
 								}
@@ -365,44 +363,99 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		else if (opcode == op_WRQ){
-			//prevent Sorcerer's Apprentice Syndrome in this block.
-			//If the server receives multiple acks for the same packet, it should not send the 
-			//next packet any more than exactly once. 
-
+			
 			FILE* fd;
-			if ((fd = checkFilenameMode(&receive_p)) == NULL){
-				int n = send_ERROR(sd, 1, NULL, (struct sockaddr* )&requesting_host, request_len);	// error num
-			}else{
-				// fork to handle RRQ
-				int dest_port = get_dest_port(arr, port_range_start, port_range_end);
-				if(dest_port == -1){
-					perror("Cannot allocate a port, all ports in use");
-					continue;
+			
+			// fork to handle RRQ
+			int dest_port = get_dest_port(arr, port_range_start, port_range_end);
+			if(dest_port == -1){
+				perror("Cannot allocate a port, all ports in use");
+				continue;
+			}
+			pid_t pid = fork();
+			if (pid > 0)
+				set_pid(arr, dest_port , arr_size, pid);
+			if (pid == 0) {
+				close(sd);
+				// handle_RRQ(fd, dest_port, (struct sockaddr_in*)&requesting_host, request_len,(struct sockaddr_in*)&responding_host, sizeof( responding_host ),&receive_p);
+				
+				int sd_new = socket(AF_INET, SOCK_DGRAM, 0);
+				if ( sd_new == -1 ) {
+			    	perror( "socket() failed" );
+			    	return EXIT_FAILURE;
+			  	}
+				responding_host.sin_port = htons(dest_port);
+				if ( bind( sd_new, (struct sockaddr *) &responding_host, sizeof( responding_host )) < 0 ) {
+			        perror( "bind() failed1" );
+			        return EXIT_FAILURE;
 				}
-				pid_t pid = fork();
-				if (pid > 0)
-					set_pid(arr, dest_port , arr_size, pid);
-				if (pid == 0) {
-					close(sd);
-					// handle_RRQ(fd, dest_port, (struct sockaddr_in*)&requesting_host, request_len,(struct sockaddr_in*)&responding_host, sizeof( responding_host ),&receive_p);
-					
-					int sd_new = socket(AF_INET, SOCK_DGRAM, 0);
-					if ( sd_new == -1 ) {
-				    	perror( "socket() failed" );
-				    	return EXIT_FAILURE;
-				  	}
-					responding_host.sin_port = htons(dest_port);
-					if ( bind( sd_new, (struct sockaddr *) &responding_host, sizeof( responding_host )) < 0 ) {
-				        perror( "bind() failed1" );
-				        return EXIT_FAILURE;
-					}
-				    
-					ssize_t n = send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
+			    
+				ssize_t n = send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
 
-					int blockNum = 0;
-					int finished = 0;
+				int blockNum = 0;
+				int finished = 0;
 
+				while(finished == 0){
+					char dataRecv[512];	// fread will not append NULL at end
+					size_t numBytes = fread(dataRecv, 1, 512, fd);
+					dataRecv[numBytes] = '\0';
+					if (numBytes < 512) {
+						
+						finished = 1;
+					}		
+					struct timeval timeout;
+					timeout.tv_sec = 1;
+					timeout.tv_usec = 0;
 
+					int count = 0;
+					while(1) {
+
+						if (count == 10) { 
+							close(sd_new); 
+							printf("timeout, disconnect\n");
+							return EXIT_SUCCESS; 	// child process end, signal handler remove_pid
+						}
+
+						
+						fd_set readfds;
+						FD_ZERO( &readfds );
+						FD_SET(sd_new, &readfds);
+						int ready = select( FD_SETSIZE, &readfds, NULL, NULL, &timeout);
+
+						if (FD_ISSET(sd_new, &readfds)) {	
+							
+							memset (&receive_p, 0, sizeof(receive_p));	// will reuse the packet p,  zero out the memory
+							recvfrom(sd_new, &receive_p, sizeof(receive_p), 0, (struct sockaddr *)&requesting_host, &request_len);
+							
+    	   					// record the new ip and port
+    	   					char* request_ip_new = inet_ntoa(requesting_host.sin_addr);
+							unsigned short int request_port_new = ntohs(requesting_host.sin_port);
+						
+							if (!same_host(request_ip, request_port, request_ip_new, request_port_new)) {
+								send_ERROR(sd_new, 5, NULL, (struct sockaddr* )&requesting_host, request_len);
+							}
+							if (get_opcode(&receive_p) == op_ERROR) {
+								//if after sending a packet, an error is returned, continue sending the packet?
+								continue;
+							}
+							
+							if (get_opcode(&receive_p) != op_ACK){
+								ssize_t n = send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
+
+							}
+				
+						}
+						count = count + 1;
+
+					} // while(1)
+				} 	  // while(!finished)
+
+				close(sd_new);
+				printf("blocks all received\n");
+				return EXIT_SUCCESS;
+
+			}
+		
 		}
 
 	}
