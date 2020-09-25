@@ -364,6 +364,47 @@ int main(int argc, char* argv[]) {
 				}	// child process
 			}
 		}
+		else if (opcode == op_WRQ){
+			//prevent Sorcerer's Apprentice Syndrome in this block.
+			//If the server receives multiple acks for the same packet, it should not send the 
+			//next packet any more than exactly once. 
+
+			FILE* fd;
+			if ((fd = checkFilenameMode(&receive_p)) == NULL){
+				int n = send_ERROR(sd, 1, NULL, (struct sockaddr* )&requesting_host, request_len);	// error num
+			}else{
+				// fork to handle RRQ
+				int dest_port = get_dest_port(arr, port_range_start, port_range_end);
+				if(dest_port == -1){
+					perror("Cannot allocate a port, all ports in use");
+					continue;
+				}
+				pid_t pid = fork();
+				if (pid > 0)
+					set_pid(arr, dest_port , arr_size, pid);
+				if (pid == 0) {
+					close(sd);
+					// handle_RRQ(fd, dest_port, (struct sockaddr_in*)&requesting_host, request_len,(struct sockaddr_in*)&responding_host, sizeof( responding_host ),&receive_p);
+					
+					int sd_new = socket(AF_INET, SOCK_DGRAM, 0);
+					if ( sd_new == -1 ) {
+				    	perror( "socket() failed" );
+				    	return EXIT_FAILURE;
+				  	}
+					responding_host.sin_port = htons(dest_port);
+					if ( bind( sd_new, (struct sockaddr *) &responding_host, sizeof( responding_host )) < 0 ) {
+				        perror( "bind() failed1" );
+				        return EXIT_FAILURE;
+					}
+				    
+					ssize_t n = send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
+
+					int blockNum = 0;
+					int finished = 0;
+
+
+		}
+
 	}
 
 	// free arr
