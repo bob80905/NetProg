@@ -2,7 +2,7 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 
-#include "unp.h"
+#include "lib/unp.h"
 
 /* error code
 
@@ -52,7 +52,7 @@ typedef struct {
 typedef struct {
 	uint16_t opcode;
 	uint16_t blockNum;
-	uint8_t data[MAX_DATA_SIZE];
+	char data[MAX_DATA_SIZE];
 }DATA;
 
 
@@ -67,7 +67,7 @@ typedef struct {
 typedef struct {
 	uint16_t opcode;
 	uint16_t errorCode;
-	uint8_t errorMsg[MAX_DATA_SIZE];
+	char errorMsg[MAX_DATA_SIZE];
 }ERROR;
 
 
@@ -364,7 +364,7 @@ int main(int argc, char* argv[]) {
 		}
 		else if (opcode == op_WRQ){
 			
-			
+			printf("Received WRQ request.\n");
 			// fork to handle RRQ
 			int dest_port = get_dest_port(arr, port_range_start, port_range_end);
 			if(dest_port == -1){
@@ -390,10 +390,16 @@ int main(int argc, char* argv[]) {
 				}
 			    
 				ssize_t n = send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
-				//printf("ACKing WRQ request\n");
+				printf("ACKing WRQ request\n");
 				int blockNum = 0;
 				int finished = 0;
+				FILE* f = fopen("hello_remote.txt", "a");
+				if (!f){
+					printf("ERROR: fopen failed.\n");
+					exit(1);
+				}
 
+				
 				while(finished == 0){
 					blockNum = blockNum + 1;
 
@@ -438,7 +444,13 @@ int main(int argc, char* argv[]) {
 							}
 							
 							if (get_opcode(&receive_p) == op_DATA){
-								//printf("Sending ACK\n");
+								printf("Sending ACK\n");
+								
+								int result = fputs(receive_p.type.data.data, f);
+								if(result < 0){
+									printf("ERROR, failed to write string to file\n");
+								}
+								printf("Received: %s\n", receive_p.type.data.data);
 								ssize_t n = send_ACK(sd_new, blockNum, (struct sockaddr* )&requesting_host, request_len);
 
 							}
@@ -451,7 +463,7 @@ int main(int argc, char* argv[]) {
 				} 	  // while(!finished)
 
 				close(sd_new);
-				//printf("blocks all received\n");
+				printf("blocks all received\n");
 				return EXIT_SUCCESS;
 
 			}
