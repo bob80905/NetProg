@@ -364,7 +364,6 @@ int main(int argc, char* argv[]) {
 		}
 		else if (opcode == op_WRQ){
 			
-			FILE* fd;
 			
 			// fork to handle RRQ
 			int dest_port = get_dest_port(arr, port_range_start, port_range_end);
@@ -391,18 +390,13 @@ int main(int argc, char* argv[]) {
 				}
 			    
 				ssize_t n = send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
-
+				printf("ACKing WRQ request\n");
 				int blockNum = 0;
 				int finished = 0;
 
 				while(finished == 0){
-					char dataRecv[512];	// fread will not append NULL at end
-					size_t numBytes = fread(dataRecv, 1, 512, fd);
-					dataRecv[numBytes] = '\0';
-					if (numBytes < 512) {
-						
-						finished = 1;
-					}		
+					blockNum = blockNum + 1;
+
 					struct timeval timeout;
 					timeout.tv_sec = 1;
 					timeout.tv_usec = 0;
@@ -421,12 +415,16 @@ int main(int argc, char* argv[]) {
 						FD_ZERO( &readfds );
 						FD_SET(sd_new, &readfds);
 						int ready = select( FD_SETSIZE, &readfds, NULL, NULL, &timeout);
+						timeout.tv_sec = 1;
+						timeout.tv_usec = 0;
 
 						if (FD_ISSET(sd_new, &readfds)) {	
 							
 							memset (&receive_p, 0, sizeof(receive_p));	// will reuse the packet p,  zero out the memory
-							recvfrom(sd_new, &receive_p, sizeof(receive_p), 0, (struct sockaddr *)&requesting_host, &request_len);
-							
+							int bytes_received = recvfrom(sd_new, &receive_p, sizeof(receive_p), 0, (struct sockaddr *)&requesting_host, &request_len);
+							if (bytes_received < 512) {
+								finished = 1;
+							}
     	   					// record the new ip and port
     	   					char* request_ip_new = inet_ntoa(requesting_host.sin_addr);
 							unsigned short int request_port_new = ntohs(requesting_host.sin_port);
@@ -439,8 +437,9 @@ int main(int argc, char* argv[]) {
 								continue;
 							}
 							
-							if (get_opcode(&receive_p) != op_ACK){
-								ssize_t n = send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
+							if (get_opcode(&receive_p) == op_DATA){
+								printf("Sending ACK\n");
+								ssize_t n = send_ACK(sd_new, blockNum, (struct sockaddr* )&requesting_host, request_len);
 
 							}
 				
@@ -448,6 +447,7 @@ int main(int argc, char* argv[]) {
 						count = count + 1;
 
 					} // while(1)
+
 				} 	  // while(!finished)
 
 				close(sd_new);
