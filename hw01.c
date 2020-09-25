@@ -2,7 +2,7 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 
-#include "lib/unp.h"
+#include "unp.h"
 
 /* error code
 
@@ -313,7 +313,7 @@ int main(int argc, char* argv[]) {
 
 							if (count == 10) { 
 								close(sd_new); 
-								printf("timeout, disconnect\n");
+								//printf("timeout, disconnect\n");
 								return EXIT_SUCCESS; 	// child process end, signal handler remove_pid
 							}
 
@@ -341,7 +341,7 @@ int main(int argc, char* argv[]) {
 								}
 								
 								if (get_opcode(&receive_p) != op_ACK){
-									printf("opcode is not ack\n");
+									//printf("opcode is not ack\n");
 									send_ERROR(sd_new, 4, NULL, (struct sockaddr* )&requesting_host, request_len);	
 								}
 								
@@ -356,7 +356,7 @@ int main(int argc, char* argv[]) {
 					} 	  // while(!finished)
 
 					close(sd_new);
-					printf("blocks all sent\n");
+					//printf("blocks all sent\n");
 					return EXIT_SUCCESS;
 
 				}	// child process
@@ -390,7 +390,7 @@ int main(int argc, char* argv[]) {
 				}
 			    
 				ssize_t n = send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
-				printf("ACKing WRQ request\n");
+				//printf("ACKing WRQ request\n");
 				int blockNum = 0;
 				int finished = 0;
 
@@ -406,7 +406,7 @@ int main(int argc, char* argv[]) {
 
 						if (count == 10) { 
 							close(sd_new); 
-							printf("timeout, disconnect\n");
+							//printf("timeout, disconnect\n");
 							return EXIT_SUCCESS; 	// child process end, signal handler remove_pid
 						}
 
@@ -438,7 +438,7 @@ int main(int argc, char* argv[]) {
 							}
 							
 							if (get_opcode(&receive_p) == op_DATA){
-								printf("Sending ACK\n");
+								//printf("Sending ACK\n");
 								ssize_t n = send_ACK(sd_new, blockNum, (struct sockaddr* )&requesting_host, request_len);
 
 							}
@@ -451,7 +451,7 @@ int main(int argc, char* argv[]) {
 				} 	  // while(!finished)
 
 				close(sd_new);
-				printf("blocks all received\n");
+				//printf("blocks all received\n");
 				return EXIT_SUCCESS;
 
 			}
