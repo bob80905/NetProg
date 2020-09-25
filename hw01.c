@@ -214,7 +214,6 @@ int main(int argc, char* argv[]) {
 	}
 
 
-
 	unsigned short int port_range_start = atoi(argv[1]);
 	unsigned short int port_range_end = atoi(argv[2]);
 
@@ -373,9 +372,23 @@ int main(int argc, char* argv[]) {
 				perror("Cannot allocate a port, all ports in use");
 				continue;
 			}
+
+			char* filename_mode = receive_p.type.wrq.filenameMode;
+			char* filename = calloc(1024, sizeof(char));
+			strcpy(filename, filename_mode);
+			//printf("%s\n", filename);
+
+			FILE* f = fopen(filename, "a");
+			free(filename);
+			if (!f){
+				printf("ERROR: fopen failed.\n");
+				exit(1);
+			}
+
 			pid_t pid = fork();
 			if (pid > 0)
 				set_pid(arr, dest_port , arr_size, pid);
+
 			if (pid == 0) {
 				close(sd);
 				// handle_RRQ(fd, dest_port, (struct sockaddr_in*)&requesting_host, request_len,(struct sockaddr_in*)&responding_host, sizeof( responding_host ),&receive_p);
@@ -396,17 +409,7 @@ int main(int argc, char* argv[]) {
 				int blockNum = 0;
 				int finished = 0;
 
-				char* filename_mode = receive_p.type.wrq.filenameMode;
-				char* filename = calloc(1024, sizeof(char));
-				strcpy(filename, filename_mode);
-				//printf("%s\n", filename);
-
-				FILE* f = fopen(filename, "a");
-				free(filename);
-				if (!f){
-					printf("ERROR: fopen failed.\n");
-					exit(1);
-				}
+				
 				
 				while(finished == 0){
 					blockNum = blockNum + 1;
@@ -453,8 +456,9 @@ int main(int argc, char* argv[]) {
 							
 							if (get_opcode(&receive_p) == op_DATA){
 								//printf("Sending ACK\n");
-								
-								int result = fputs(receive_p.type.data.data, f);
+								//printf("%s\n, %d\n",  receive_p.type.data.data, bytes_received);
+								int result = fwrite(receive_p.type.data.data, 1, bytes_received, f);
+								fflush(f);
 								if(result < 0){
 									printf("ERROR, failed to write string to file\n");
 								}
