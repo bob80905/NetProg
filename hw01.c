@@ -2,7 +2,7 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 
-#include "lib/unp.h"
+#include "unp.h"
 
 /* error code
 0         Not defined, see error message (if any).
@@ -477,7 +477,7 @@ int main(int argc, char* argv[]) {
 							wrq_initial_recv:;
 							int bytes_received = recvfrom(sd_new, &receive_p, sizeof(receive_p), 0, (struct sockaddr *)&requesting_host, &request_len);
 							if(bytes_received < 0 && errno == EINTR){
-								printf("EINTR block\n");
+								//printf("EINTR block\n");
 								goto wrq_initial_recv;
 							}
 							if (bytes_received < 0 && errno != EINTR){
@@ -510,7 +510,8 @@ int main(int argc, char* argv[]) {
 								int result = fwrite(receive_p.type.data.data, 1, length, f);
 								fflush(f);
 								if(result < 0){
-									printf("ERROR, failed to write string to file\n");
+									perror("ERROR, failed to write string to file\n");
+									exit(1);
 								}
 								//printf("Received: %s\n", receive_p.type.data.data);
 								send_ACK(sd_new, blockNum, (struct sockaddr* )&requesting_host, request_len);
