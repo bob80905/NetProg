@@ -124,6 +124,7 @@ ssize_t send_DATA(int sd, int blockNum, char* buffer, struct sockaddr* host, soc
 	if ((n = sendto(sd, &p, strlen(p.type.data.data) + 4, 0, host, host_len)) < 0){
 		perror("send data failed\n");
 	}
+	//printf("Sent out %ld bytes\n", n);
 	return n;
 }
 
@@ -351,8 +352,13 @@ int main(int argc, char* argv[]) {
 								if (!same_host(request_ip, request_port, request_ip_new, request_port_new)) {
 									send_ERROR(sd_new, 5, NULL, (struct sockaddr* )&requesting_host, request_len);
 								}
-								if (get_opcode(&receive_p) == op_ERROR) {
 
+								if (get_opcode(&receive_p) == op_WRQ){
+									send_ERROR(sd_new, 4, NULL, (struct sockaddr* )&requesting_host, request_len);
+								}
+
+								if (get_opcode(&receive_p) == op_ERROR) {
+									count = count+1;
 									//if after sending a packet, an error is returned, continue sending the packet?
 									continue;
 								}
@@ -484,8 +490,11 @@ int main(int argc, char* argv[]) {
 								perror("Recvfrom failed.\n");
 								exit(1);
 							}
-							if (bytes_received < 512) {
+							if (bytes_received < 516) {
 								finished = 1;
+							}
+							if (bytes_received > 516) {
+								send_ERROR(sd_new, 5, NULL, (struct sockaddr* )&requesting_host, request_len);
 							}
     	   					// record the new ip and port
     	   					char* request_ip_new = inet_ntoa(requesting_host.sin_addr);
@@ -495,12 +504,17 @@ int main(int argc, char* argv[]) {
 								send_ERROR(sd_new, 5, NULL, (struct sockaddr* )&requesting_host, request_len);
 							}
 							if (get_opcode(&receive_p) == op_ERROR) {
+								count = count + 1;
 								//if after sending a packet, an error is returned, continue sending the packet?
 								continue;
 							}
 
 							if(get_opcode(&receive_p) == op_WRQ){
 								send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
+							}
+
+							if (get_opcode(&receive_p) == op_RRQ){
+								send_ERROR(sd_new, 4, NULL, (struct sockaddr* )&requesting_host, request_len);
 							}
 							
 							if (get_opcode(&receive_p) == op_DATA && ntohs(receive_p.type.data.blockNum) == blockNum){
