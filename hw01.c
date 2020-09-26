@@ -5,7 +5,6 @@
 #include "lib/unp.h"
 
 /* error code
-
 0         Not defined, see error message (if any).
 1         File not found.
 2         Access violation.
@@ -14,7 +13,6 @@
 5         Unknown transfer ID.
 6         File already exists.
 7         No such user.
-
 */
 
 #define MAX_DATA_SIZE 513
@@ -426,7 +424,19 @@ int main(int argc, char* argv[]) {
 			        return EXIT_FAILURE;
 				}
 			    
-				send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
+			    fd_set readfds;
+			    for(int i = 0; i < 10; i++){
+			    	struct timeval timeout;
+			    	timeout.tv_sec = 1;
+					timeout.tv_usec = 0;
+					send_ACK(sd_new, 0, (struct sockaddr* )&requesting_host, request_len);
+					FD_ZERO( &readfds );
+					FD_SET(sd_new, &readfds);
+					select( FD_SETSIZE, &readfds, NULL, NULL, &timeout);
+					if(FD_ISSET(sd_new, &readfds)) {	
+						break;
+					}			
+				}
 				//printf("ACKing WRQ request\n");
 				int blockNum = 0;
 				int finished = 0;
@@ -450,7 +460,6 @@ int main(int argc, char* argv[]) {
 						}
 
 						
-						fd_set readfds;
 						FD_ZERO( &readfds );
 						FD_SET(sd_new, &readfds);
 						select( FD_SETSIZE, &readfds, NULL, NULL, &timeout);
