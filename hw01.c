@@ -124,6 +124,7 @@ ssize_t send_DATA(int sd, int blockNum, char* buffer, struct sockaddr* host, soc
 	if ((n = sendto(sd, &p, strlen(p.type.data.data) + 4, 0, host, host_len)) < 0){
 		perror("send data failed\n");
 	}
+	//printf("Sent out %ld bytes\n", n);
 	return n;
 }
 
@@ -484,8 +485,11 @@ int main(int argc, char* argv[]) {
 								perror("Recvfrom failed.\n");
 								exit(1);
 							}
-							if (bytes_received < 512) {
+							if (bytes_received < 516) {
 								finished = 1;
+							}
+							if (bytes_received > 516) {
+								send_ERROR(sd_new, 5, NULL, (struct sockaddr* )&requesting_host, request_len);
 							}
     	   					// record the new ip and port
     	   					char* request_ip_new = inet_ntoa(requesting_host.sin_addr);
