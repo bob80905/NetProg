@@ -307,10 +307,10 @@ int main(int argc, char* argv[]) {
 						size_t numBytes = fread(dataSend, 1, 512, fd);
 						blockNum += 1;
 						dataSend[numBytes] = '\0';
-						if (numBytes < 512) {
+						// if (numBytes < 512) {
 							
-							finished = 1;
-						}		
+						// 	finished = 1;
+						// }		
 						struct timeval timeout;
 						timeout.tv_sec = 1;
 						timeout.tv_usec = 0;
@@ -369,6 +369,10 @@ int main(int argc, char* argv[]) {
 								}
 								
 								if (get_opcode(&receive_p) == op_ACK && ntohs(receive_p.type.ack.blockNum) == blockNum) {
+									if (numBytes < 512) {
+							
+										finished = 1;
+									}		
 									break;		// go to send next block
 								}
 					
@@ -490,9 +494,9 @@ int main(int argc, char* argv[]) {
 								perror("Recvfrom failed.\n");
 								exit(1);
 							}
-							if (bytes_received < 516) {
-								finished = 1;
-							}
+							// if (bytes_received < 516) {
+							// 	finished = 1;
+							// }
 							if (bytes_received > 516) {
 								send_ERROR(sd_new, 5, NULL, (struct sockaddr* )&requesting_host, request_len);
 							}
@@ -518,6 +522,9 @@ int main(int argc, char* argv[]) {
 							}
 							
 							if (get_opcode(&receive_p) == op_DATA && ntohs(receive_p.type.data.blockNum) == blockNum){
+								if (bytes_received < 516) {
+									finished = 1;
+								}
 								//printf("Sending ACK\n");
 								//printf("%s\n, %d\n",  receive_p.type.data.data, bytes_received);
 								int length = strlen(receive_p.type.data.data); 
