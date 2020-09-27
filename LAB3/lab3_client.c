@@ -98,6 +98,7 @@ int main(int argc, char **argv) {
 						char msg[MAXLINE];
 						recv:;
 						int num_bytes = Recv(connection_fds[i].fd, msg, MAXLINE, 0);
+						msg[num_bytes] = '\0';
 						if(errno == EINTR){
 							goto recv;
 						}
@@ -108,7 +109,7 @@ int main(int argc, char **argv) {
 							continue;
 						}
 						printf("%d %s",connection_fds[i].port, msg);
-						send(connection_fds[i].fd, msg, MAXLINE, 0);
+						send(connection_fds[i].fd, msg, num_bytes, 0);
 
 					}
 				}
