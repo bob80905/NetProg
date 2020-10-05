@@ -3,7 +3,7 @@
 #include <sys/socket.h>
 #include <stdio.h>
 
-#include "../lib/unp.h" // Change before submitting
+#include "unp.h" // Change before submitting
 
 int PORT = 9877;
 
@@ -55,9 +55,7 @@ int main(int argc, char **argv) {
 		}
 
 		int maxfd = getmax(connection_fds);
-		printf("Blocking on select...\n");
 		select( maxfd+1, &readfds, NULL, NULL, NULL);
-		printf("Done with select...\n");
 		if (FD_ISSET(0, &readfds)){
 			char number[MAXLINE];
 			fgets(number, MAXLINE, stdin);

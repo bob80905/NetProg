@@ -3,7 +3,7 @@
 #include <sys/socket.h>
 #include <stdio.h>
 
-#include "../lib/unp.h" // Change before submitting
+#include "unp.h" // Change before submitting
 
 int main(int argc, char **argv) {
 	if (argc != 2) {
@@ -47,14 +47,21 @@ int main(int argc, char **argv) {
 		// Read from stdin, then send to client
 		char* buf = calloc(MAXLINE, sizeof(char));
 		char* input = fgets(buf, MAXLINE, stdin);
+
+		if(!input){
+			printf("Shutting down due to EOF\n");
+			Close(connfd);
+			Close(listenfd);
+			free(buf);
+			exit(0);
+		}
+
 		int length = strlen(input);
-		printf("Sending: %s\n", buf);
 		send(connfd, buf, length, 0);
 
 
 		char* recvmsg = calloc(MAXLINE, sizeof(char));
 		int recvbytes = recv(connfd, recvmsg, length, 0);
-		printf("Received echo: %s\n", recvmsg );
 		
 		if(recvbytes == 0){
 			printf("str_cli: client disconnected\n");
@@ -65,20 +72,6 @@ int main(int argc, char **argv) {
 			free(buf);
 			exit(0);
 		}
-
-
-		//loop and see if there's an EOF char
-		if(strcmp(recvmsg, buf)!=0){ 
-		//if theres an EOF in the string we receive from the client
-			printf("recvmsg = %s \n buf = %s \n", recvmsg, buf);
-			printf("Shutting down due to EOF\n");
-			Close(connfd);
-			Close(listenfd);
-			free(recvmsg);
-			free(buf);
-			exit(0);
-		}
-
 
 		free(recvmsg);
 		free(buf);
