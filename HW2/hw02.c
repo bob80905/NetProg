@@ -4,21 +4,24 @@
 #include <ctype.h>
 #include <sys/types.h> 
 #include <sys/socket.h>
-#include "unpv13e/lib/unp.h"
+#include "unp.h"
 
 int MAXIMUMLINE = 1024;
 
+//information on a word and letter frequency
 typedef struct {
 	int freq;
 	char letter;
 }letter_info;
 
+//user information
 typedef struct{
 	int connection_fd;
 	char* username;
 	int usernameLength;
 }user;
 
+//true if a character is not within the letterinfo struct secret_word_info
 bool notWithin(char c, letter_info* secret_word_info, int total_length){
 	for(int i = 0; i < total_length; i++){
 		if(secret_word_info[i].letter == c){
@@ -28,6 +31,7 @@ bool notWithin(char c, letter_info* secret_word_info, int total_length){
 	return true;
 }
 
+//adds a letter to the letter_info struct arry, c
 void addLetter(char c, letter_info** secret_word_info, int total_length){
 	letter_info* temp = calloc(total_length+1, sizeof(letter_info));
 	//copy data over
@@ -42,6 +46,7 @@ void addLetter(char c, letter_info** secret_word_info, int total_length){
 	*secret_word_info = temp;
 }
 
+//increments the frequency of letter_info with character c
 void incrementFreq(char c, letter_info** secret_word_info, int total_length){
 	for(int i = 0; i < total_length; i++){
 		if(c == (*secret_word_info)[i].letter){
@@ -54,6 +59,7 @@ void incrementFreq(char c, letter_info** secret_word_info, int total_length){
 }
 
 //n is length of secret word, total_length is length of produced letter_info array
+//return letter info struct array given word secret
 letter_info* loadLetterInfo(char* secret, int n, int* total_length){
 	letter_info* secret_word_info = calloc(1, sizeof(letter_info));
 	letter_info base;
@@ -122,6 +128,7 @@ void getCorrectAndCorrectlyPlaced(char* guess, char* secret, int guess_length, i
 	return;
 }
 
+//make an entire string upper case
 void uppercaseify(char word[], char** newWord, int length){
 	*newWord = calloc(length, sizeof(char));
 	for(int i = 0; i < length; i++){
@@ -131,11 +138,14 @@ void uppercaseify(char word[], char** newWord, int length){
 	return;
 }
 
+//process the entire dictionary file and produce a 2D char array for each word in the dictionary
 void loadDictionary(char*** allWords, FILE* wordFile, int* dictLength){
 	int allWordsSize = 0;
 	while(1){
+
 		char* word = calloc(MAXIMUMLINE, sizeof(char)); //all words will be loaded into the dictionary
 		int result = fscanf(wordFile, "%s", word);
+
 		if(result == EOF){
 			break; //done reading the file
 		}
@@ -153,24 +163,11 @@ void loadDictionary(char*** allWords, FILE* wordFile, int* dictLength){
 
 }
 
-int getLength(char* word){
-	int i = 0;
-	while(1){
-		if(word[i] == '\n'|| word[i] == '\0'){
-			return i;
-		}
-	       
-	    else{
-	    	i+=1;
-		}
-	        
-	}
-}
-
+//return the number of digits inside num
 int numDigits(int num){
 	double numCopy = (double)num;
 	int ret = 1;
-	while(numCopy > 10.0){
+	while(numCopy >= 10.0){
 		numCopy = numCopy / 10.0;
 		ret += 1;
 	}
@@ -183,7 +180,7 @@ int main(int argc, char* argv[]){
 		perror("Expected 4 arguments: [seed] [port] [dictionary_file] [longest_word_length]\n");
 		exit(1);
 	}
-
+	//load user args
 	int seed = atoi(argv[1]);
 	int PORT = atoi(argv[2]);
 	char* file = argv[3];
@@ -201,13 +198,14 @@ int main(int argc, char* argv[]){
    	}
 
    	int dictLength = 0;
-
+	
+	//load the dictionary
    	loadDictionary(&allWords, wordFile, &dictLength);
 
    	srand(seed);
    	int random_num = rand() % dictLength;
    	char* secret_word = allWords[random_num];
-   	int secret_word_length = getLength(secret_word);
+   	int secret_word_length = strlen(secret_word);
 
 	// start a server, make listener socket
 	int listenfd, connfd;
@@ -216,6 +214,7 @@ int main(int argc, char* argv[]){
 
 	listenfd = Socket(AF_INET, SOCK_STREAM, 0);
 
+	//clear sockaddr_in struct, and set it
 	bzero(&servaddr, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
@@ -226,8 +225,9 @@ int main(int argc, char* argv[]){
 	Listen(listenfd, 1);
 
 	user users[5];
-	int number_connected = 0;
-	int maxfd = listenfd;
+	int number_connected = 0; //number of users connected
+	int maxfd = listenfd; 
+	//clear all user entries at first
 	for(int i = 0; i < 5; i++){
 		users[i].connection_fd = -1; //-1 means this slot is empty
 		users[i].username = NULL;
@@ -236,12 +236,11 @@ int main(int argc, char* argv[]){
 
 
 	while(1){
-		struct timeval timeout;
-		timeout.tv_sec = 1;
-		timeout.tv_usec = 0;
+		
 		fd_set readfds;
 		FD_ZERO( &readfds );
 		FD_SET(listenfd, &readfds);
+		maxfd = listenfd;
 		for(int i = 0; i < 5; i++){
 			if(users[i].connection_fd != -1){
 				FD_SET(users[i].connection_fd, &readfds);
@@ -249,14 +248,15 @@ int main(int argc, char* argv[]){
 				//reset maxfd if necessary
 			}
 		}
-
-		int select_result = select( maxfd+1, &readfds, NULL, NULL, &timeout);
-		timeout.tv_sec = 1;
-		timeout.tv_usec = 0;
+		
+		//listen to listening socket and all other clients
+		int select_result = select( maxfd+1, &readfds, NULL, NULL, NULL);
+		
 		clilen = sizeof(cliaddr);
 		if(select_result == -1){
 			perror("ERROR: Select failed\n");
 		}
+		//if a new client wants to connect
 		if(FD_ISSET(listenfd, &readfds)){
 			if(number_connected == 5){
 				continue; //max client capacity is 5, can't add any more.
@@ -264,6 +264,7 @@ int main(int argc, char* argv[]){
 			connfd = Accept(listenfd, (SA *) &cliaddr, &clilen);
 			Send(connfd, "Welcome to Guess the Word, please enter your username.\n", 55 , 0);
 			
+			//find first available empty slot, add client
 			for(int i = 0; i < 5; i++){
 				if(users[i].connection_fd == -1){
 					users[i].connection_fd = connfd;
@@ -272,7 +273,7 @@ int main(int argc, char* argv[]){
 				}
 			}
 
-			number_connected += 1;
+			number_connected += 1; //new client, more clients connected
 			
 		}
 		//check to see if any other connected user's fds are set
@@ -280,6 +281,7 @@ int main(int argc, char* argv[]){
 			if(users[i].connection_fd == -1){
 				continue;
 			}
+			//if a client has sent something to us
 			if(FD_ISSET(users[i].connection_fd, &readfds)){
 				char* recvmsg = calloc(MAXIMUMLINE, sizeof(char));
 				int recvbytes = recv(users[i].connection_fd, recvmsg, MAXIMUMLINE, 0);
@@ -287,8 +289,10 @@ int main(int argc, char* argv[]){
 					perror("ERROR: recv failed.\n");
 					exit(1);
 				}
+				//if the client disconnected
 				if(recvbytes == 0){
 					//handle when a client disconnects from game
+					close(users[i].connection_fd);
 					number_connected -= 1;
 					users[i].connection_fd = -1;
 					users[i].username = NULL;
@@ -297,6 +301,7 @@ int main(int argc, char* argv[]){
 					continue;
 				}
 				recvbytes-=1;
+				recvmsg[recvbytes] = '\0';
 				//if the user already has an associated username,
 				//then this is a guess we've just received
 				if(users[i].username){
@@ -305,26 +310,25 @@ int main(int argc, char* argv[]){
 					
 					if(recvbytes != secret_word_length){
 						int secret_word_length_length = numDigits(secret_word_length);
-						char strSecretWordLength[secret_word_length_length];
-						sprintf(strSecretWordLength, "%d", secret_word_length);
-						int msglen = 41 + secret_word_length_length + 12;
-						char response[msglen];
-						strncpy(response, "Invalid guess length. The secret word is ", 41);
-						strncpy(&response[41], strSecretWordLength, secret_word_length_length);
-						strncpy(&response[41 + secret_word_length_length], " letter(s).\n", 12);
 						
+						int msglen = 41 + secret_word_length_length + 11;
+						char response[msglen];
+						
+						sprintf(response, "Invalid guess length. The secret word is %d letter(s).", secret_word_length);
 						Send(users[i].connection_fd, response, msglen, 0);
 					}
 					else{
 						int correct;
 						int correctly_placed;
 						getCorrectAndCorrectlyPlaced(capitalGuess, secret_word, recvbytes, &correct, &correctly_placed);
-						//if user guess secret word correctly
+						//if user guessed secret word correctly
 						if(correctly_placed == secret_word_length){
-							int response_length = strlen(users[i].username) + strlen(secret_word) + 33;
+							int response_length = users[i].usernameLength + secret_word_length + 33;
 							char response[response_length];
 							sprintf(response, "%s has correctly guessed the word %s\n", users[i].username, secret_word);
-							//this should be sent to all active users
+							
+							//the announcement should be sent to all active users
+							//close all connections to active users and clean up
 							for(int j= 0; j < 5; j++){
 								if(users[j].connection_fd != -1 && j != i){
 									Send(users[j].connection_fd, response, response_length, 0);
@@ -342,28 +346,29 @@ int main(int argc, char* argv[]){
 							users[i].connection_fd = -1;
 							users[i].usernameLength = 0;
 							
-							number_connected = 0;
+							number_connected = 0; //no more users connected
 
+							//continuously select a new random word until its less than the max limit
 							random_num = rand() % dictLength;
 							secret_word = allWords[random_num];
-							secret_word_length = getLength(secret_word);
+							secret_word_length = strlen(secret_word);
 							int m = (MAXIMUMLINE < longest_length) ? MAXIMUMLINE : longest_length;
 							while(secret_word_length > m){
 								random_num = rand() & dictLength;
 								secret_word = allWords[random_num];
-								secret_word_length = getLength(secret_word);
+								secret_word_length = strlen(secret_word);
 							}
 
-							break;
+							break; //go back to select and listen
 							
 						}
+						//if the guess was incorrect
 						else{
 							int numCorrectLength = numDigits(correct);
 							int numCorrectlyPlacedLength = numDigits(correctly_placed);
 
-							recvmsg[recvbytes] = '\0';
-							//int sendlen = 81 + numCorrectLength + numCorrectlyPlacedLength;
-							int sendlen = 73 + numCorrectLength + numCorrectlyPlacedLength + strlen(recvmsg) + getLength(users[i].username);
+							recvmsg[recvbytes] = '\0'; //replace newline with null terminating char
+							int sendlen = 73 + numCorrectLength + numCorrectlyPlacedLength + recvbytes + users[i].usernameLength;
 							char response[sendlen];
 							
 							sprintf(
@@ -375,7 +380,6 @@ int main(int argc, char* argv[]){
 							for(int j= 0; j < 5; j++){
 								if(users[j].connection_fd != -1){
 									
-									//bob guessed spill: 1 letter(s) were correct and 1 letter(s) were correctly placed.
 									Send(users[j].connection_fd, response, sendlen, 0);
 								}
 							}
@@ -408,6 +412,7 @@ int main(int argc, char* argv[]){
 							}
 						}
 					}
+					
 					if(same){
 						//username is taken, send an error msg
 						int msgLength = 62 + recvbytes;
@@ -427,13 +432,14 @@ int main(int argc, char* argv[]){
 						Send(users[i].connection_fd, response, msgLength, 0);
 					}
 					else{
-						users[i].username = calloc(recvbytes, sizeof(char));
+						//assign the username, store to correct client slot
+						users[i].username = calloc(recvbytes+1, sizeof(char));
 						users[i].usernameLength = recvbytes;
 						for(int j = 0; j < recvbytes; j++){
 							users[i].username[j] = recvmsg[j];
 						}
 						int secret_word_length_length = numDigits(secret_word_length);
-						int msglen = 21 + recvbytes + 11 + 1 + 39 + secret_word_length_length + 13 + 1;
+						int msglen = 21 + recvbytes + 11 + 1 + 39 + secret_word_length_length + 11;
 						char response[msglen];
 						char numPlayers[2]; //include the terminating null
 						sprintf(numPlayers, "%d", number_connected);
@@ -442,18 +448,16 @@ int main(int argc, char* argv[]){
 						char strSecretWordLength[secret_word_length_length];
 						sprintf(strSecretWordLength, "%d", secret_word_length);
 
+						//send info message
 						strncpy(response, "Let's start playing, ", 21);
 						strncpy(&response[21], users[i].username, recvbytes );
 						strncpy(&response[21 + recvbytes], "\nThere are ", 11);
 						strncpy(&response[21 + recvbytes + 11], numPlayers, 1);
 						strncpy(&response[21 + recvbytes + 11 + 1], " player(s) playing. The secret word is " , 39);
 						strncpy(&response[21 + recvbytes + 11 + 1 + 39], strSecretWordLength, secret_word_length_length);
-						strncpy(&response[21 + recvbytes + 11 + 1 + 39 + secret_word_length_length]," letter(s).\n", 13);
-						response[msglen-1] = '\0';
-						int bytesSent = send(users[i].connection_fd, response, msglen, 0);
-						if(bytesSent < 0){
-							perror("ERROR: Send Failed\n");
-						}
+						strncpy(&response[21 + recvbytes + 11 + 1 + 39 + secret_word_length_length]," letter(s).", 11);
+						Send(users[i].connection_fd, response, msglen, 0);
+						
 					}
 					
 				}
@@ -461,6 +465,4 @@ int main(int argc, char* argv[]){
 			
 		}	
 	}	
-} //remember to free the dictionary and everything else
-//handle clients disconnecting (setting connection fd to -1, username to NULL)
-//send a single message when username confirmed ~390
+} 
