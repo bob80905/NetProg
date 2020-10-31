@@ -1,0 +1,77 @@
+1. Using the filter of ftp.command, determine the FTP commands that the user has used: 
+LIST, STOR 111.png, LIST, LIST, RETR manual.txt
+
+2. Using the filter of ftp.response, determine the FTP codes that have been returned: 
+220, 331, 230, 215, 211, 257, 200, 227, 125, 226, 220, 331, 230, 250, 257, 200, 227, 125, 226, 227, 125, 226, 250, 257, 200, 227, 125, 226
+
+3. What is the username and password for the access to the FTP server:
+USER Administrator
+PASS napier
+
+4. What is the name of the file which is uploaded:
+111.png
+
+5. What is the name of the file which is downloaded:
+manual.txt
+
+6. Using the filter of ftp.request.command=="LIST", determine the first packet number which performs a “LIST”: 
+26
+* First packet to request list is 21, but LIST is performed in 26
+
+7. In performing in the list of the files on the FTP server, which TCP port is used on the server for the transfer:
+1078, 1080, 1081
+* LIST request is sent to port 21
+
+8. From the final “LIST” command, which are the files on the server?
+1.docx
+manual.txt 
+
+9. What does the filter ftp.response.code==227 identify in terms of the ports that are used for the transfer:
+Src Port: 21
+Dst Port: 49430, 49440
+
+10. Terminal output:
+
+andrew@Andrews-MacBook-Pro ~ % ftp
+ftp> open ftp.cdc.gov
+Connected to ftp.cdc.gov.
+220 Microsoft FTP Service
+Name (ftp.cdc.gov:andrew): anonymous
+331 Anonymous access allowed, send identity (e-mail name) as password.
+Password: 
+230 User logged in.
+ftp> ls
+200 PORT command successful.
+125 Data connection already open; Transfer starting.
+-rwxrwxrwx   1 owner    group             128 May  9  1995 .change.dir
+-rwxrwxrwx   1 owner    group             107 May  9  1995 .message
+drwxrwxrwx   1 owner    group               0 Aug 31 16:01 pub
+-rwxrwxrwx   1 owner    group            1428 May 13  1999 Readme
+-rwxrwxrwx   1 owner    group             383 May 13  1999 Siteinfo
+drwxrwxrwx   1 owner    group               0 May 20  2010 w3c
+-rwxrwxrwx   1 owner    group             202 Sep 22  1998 welcome.msg
+226 Transfer complete.
+ftp> cd pub/FOIAREQ
+250 CWD command successful.
+ftp> ascii
+200 Type set to A.
+ftp> get 177001-508.pdf
+200 PORT command successful.
+125 Data connection already open; Transfer starting.
+WARNING! 429 bare linefeeds received in ASCII mode
+File may not have transferred correctly.
+226 Transfer complete.
+84054 bytes received in 0.249 seconds (330 kbytes/s)
+ftp> binary
+200 Type set to I.
+ftp> get 177001-508.pdf
+200 PORT command successful.
+150 Opening BINARY mode data connection.
+226 Transfer complete.
+84054 bytes received in 0.238 seconds (346 kbytes/s)
+ftp> bye
+221 Goodbye.
+
+11: The ascii version would not open at all in preview, Safari, or Firefox. The binary version appears just fine. This is on the macOS Big Sur developer beta. This is due to the difference in handling newline in UNIX versus PC (carriage return before newline). For members of our team opening the ascii pdf on Windows, the pdf was viewable except the bottom of the logo image exhibited distortion. We believe this has the same cause and could have to do with images needing to be represented in binary due to compression.
+
+
