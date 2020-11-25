@@ -1,0 +1,36 @@
+RPI Fall 2020 CSCI 4220
+Lab 8: HTTP in Wireshark
+
+1. HTTP 1.1 on Safari version 14.0.1. The server is also running HTTP 1.1.
+
+2. text/html, application/xhtml+xml
+
+3. Our IP: 192.168.1.157, Server IP: 128.119.245.12
+
+4. Status Code: 200
+
+5. Last-Modified: Wed, 25 Nov 2020 06:59:01 GMT
+
+6. 486 bytes over TCP, 128 bytes for the html file.
+
+7. No, we do not see any headers within the data that are not displayed in the packet-listing window.
+
+8. No, we do not see an IF-MODIFIED-SINCE line.
+
+9. Yes, because we can view the line-based text data contained in the HTML file.
+
+10. No, we do not see an IF-MODIFIED-SINCE line in this packet either.
+
+11. 404 Not Found. No, it instead returned an HTML file stating that the requested URL /favicon.ico was not found on the server.
+
+12. The browser sent two HTTP GET request messages. Paket number 22 contains the GET message for the Bill of Rights.
+
+13. Packet number 27 contains the status code and phrase associated with the response to the HTTP GET request. 
+
+14. Status code and phrase: 200 OK
+
+15. 4 data-containing TCP segments were needed to carry the response and Bill of Rights text.
+
+16. The browser sent one HTTP GET request message to 128.119.245.12.
+
+17. The two images appear to have downloaded serially, as they were sent over a single TCP packet.
