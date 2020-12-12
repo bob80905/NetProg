@@ -1,5 +1,6 @@
 class BaseStation:
     def __init__(self, baseID = "", xPos = 0, yPos = 0, numLinks = 0, listOfLinks = []):
+        self.type = "BASE"
         self.baseID = baseID
         self.xPos = xPos
         self.yPos = yPos

@@ -14,7 +14,8 @@ class DataMessage:
         self.nextID = toSend
 
     def toString(self):
-        return f"{} {} {} {} {} {} {}".format(self.type, self.originID, self.nextID, self.destinationID, self.hopListLength, self.hopList)
+        returnString = "{} {} {} {} {} {}".format(self.type, self.originID, self.nextID, self.destinationID, self.hopListLength, self.hopList)
+        return returnString
 
     # Will not send where message has been to avoid cycles
     def canSend(self, destination):
@@ -26,17 +27,17 @@ class DataMessage:
 #given the output on toString, produce a DataMessage object
 def DataMessageFactory(datastr):
     data = datastr.split(" ")
-    hopListString = data[4:]
-    length = int(data[3])
+    hopListString = data[5:]
+    length = int(data[4])
     realHopList = []
     i = 0
     while i < length:
         if i == 0:
-            realHopList.append(data[4][1])
+            realHopList.append(data[5][1])
         else:
-            realHopList.append(data[4+i][0])
+            realHopList.append(data[5+i][0])
         i+=1
 
 
-    return DataMessage(data[0], data[1], data[2], data[3], realHopList)
+    return DataMessage(data[1], data[2], data[3], length, realHopList)
     
