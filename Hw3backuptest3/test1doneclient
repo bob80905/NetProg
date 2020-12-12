@@ -16,6 +16,7 @@ def where(sock, destinationID):
     response = sock.recv(1024) #wait forever until server responds
     response = response.decode()
     response = response.split(" ")
+    print(response, flush=True)
     return (int(response[2]), int(response[3]))
 
 
@@ -32,13 +33,16 @@ def updateposition(sock, s_id, rng, x, y):
 
     ret = {}
     sendstr = "UPDATEPOSITION " + s_id + " " + str(rng) + " " + str(x) + " " + str(y)
+    print("Sending {}".format(sendstr), flush=True)
     sock.sendall(sendstr.encode())
     recvstr = sock.recv(1024)
     recvstr = recvstr.decode()
     recvlst = recvstr.split()
+    print("Received {}".format(recvstr), flush=True)
 
     for i in range(2, len(recvlst), 3):
         ret[recvlst[i]] = ( int(recvlst[i+1]), int(recvlst[i+2]) )
+    print(ret, flush=True)
     return ret
 
 
@@ -70,6 +74,7 @@ def run_client():
     reachable = updateposition(connectsocket, sensorid, sensorrange, xpos, ypos)
     read = [sys.stdin, connectsocket]
     write = []
+    print("Starting infinite loop", flush=True)
     while(1):
         readable = select.select(read, [], [])[0]
         if sys.stdin in readable:
@@ -83,15 +88,20 @@ def run_client():
                 ypos = int(linelst[2])
                 reachable = updateposition(connectsocket, sensorid, sensorrange, xpos, ypos)
             if linelst[0] == "SENDDATA":
+                print("Sent update position", flush=True)
                 reachable = updateposition(connectsocket, sensorid, sensorrange, xpos, ypos)
+                print("REACHABLE: {}".format(reachable))
+                print("Returned from updateposition", flush=True)
                 xDest, yDest = where(connectsocket, linelst[1])
                 hops = [sensorid]
                 nextID = findClosest(reachable, sensorrange, xDest, yDest)
+                print("CLOSEST: {}".format(nextID), flush=True)
                 msg = DataMessage.DataMessage(sensorid, nextID, linelst[1], 1, hops)
                 if nextID == linelst[1]:
-                    print("{}: Sent a new message directly to {}.".format(sensorid, linelst[1]))
+                    print("{}: Sent a new message directly to {}".format(sensorid, linelst[1]))
                 else:
-                    print("{}: Sent a new message bound for {}.".format(sensorid, linelst[1]))
+                    print("{}: Sent a new message bound for {}".format(sensorid, linelst[1]))
+                print("Sending Data message", flush=True)
                 connectsocket.sendall(msg.toString().encode())
 
 
@@ -104,16 +114,16 @@ def run_client():
         #We received something from the Control Server
         if connectsocket in readable:
             msg = connectsocket.recv(1024).decode()
-            splitmsg = msg.split(" ", 5)
+            splitmsg = msg.split(" ")
             
             if splitmsg[0] == "DATAMESSAGE":
                 if splitmsg[3] == sensorid:
-                    print("{}: Message from {} to {} successfully received.".format(sensorid, splitmsg[1], splitmsg[3]))
+                    print("{}: Message from {} to {} successfully received".format(sensorid, splitmsg[1], splitmsg[3]))
                 
                 #this is when we receive a datamessage from the server,
                 #So we are not the origin
                 else:
-                    Datamsg = DataMessage.DataMessageFactory(msg)
+                    Datamsg = DataMessageFactory(msg)
                     hopList = Datamsg.hopList
                     
                     #if all reachable sites are within the hopList of the message
@@ -122,15 +132,13 @@ def run_client():
 
                     else:
                         reachable = updateposition(connectsocket, sensorid, sensorrange, xpos, ypos)
-                        destX, destY = where(connectsocket, splitmsg[3])
+                        destX, destY = where(splitmsg[3])
 
                         #get the sensor to send a data message to the right base station / sensor
-                        nextID = findClosest(reachable, sensorrange, destX, destY)
-                        hopList = eval(splitmsg[5])
-                        
-                        hopList.append(sensorid)
+                        nextID = getNextStep(reachable, destX, destY)
+
                         print("{}: Message from {} to {} being forwarded through {}".format(sensorid, splitmsg[1], splitmsg[3], splitmsg[2]))
-                        msg = f"DATAMESSAGE {splitmsg[1]} {nextID} {splitmsg[3]} {len(hopList)} {str(hopList)}"
+                        msg = f"DATAMESSAGE {splitmsg[1]} {splitmsg[2]} {splitmsg[3]} {splitmsg[4]} {splitmsg[5]} "
                         connectsocket.send(msg.encode())
                  
 

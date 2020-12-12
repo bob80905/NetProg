@@ -34,6 +34,7 @@ def getNextClosestBaseStation(startSite, destX, destY, allBases, hopList):
             sendableList = allBases
         #get all Base stations that are in range, and have not already received this message.
         else:
+            print(hopList)
             sendableList = [x for x in allBases if x.baseID not in hopList and x.baseID in startSite.listOfLinks]
     else:
         for base in allBases:
@@ -56,16 +57,9 @@ def getNextClosestBaseStation(startSite, destX, destY, allBases, hopList):
 
 def getNextClosestSensor(startSite, destX, destY, allSensors, hopList):
     sendableList = []
-    if startSite.type == "SENSOR":
-        for sensor in allSensors:
-            if sensor.baseID not in hopList:
-                if euclideanDistance(sensor.xPos, sensor.yPos, startSite.xPos, startSite.yPos) <= startSite.range:
-                    if euclideanDistance(sensor.xPos, sensor.yPos, startSite.xPos, startSite.yPos) <= sensor.range:
-                        sendableList.append(sensor)
-
-    else:
-        for sensor in allSensors:
-            if sensor.baseID not in hopList:
+    for sensor in allSensors:
+        if sensor.id not in hopList:
+            if euclideanDistance(sensor.xPos, sensor.yPos, startSite.xPos, startSite.yPos) <= startSite.range:
                 if euclideanDistance(sensor.xPos, sensor.yPos, startSite.xPos, startSite.yPos) <= sensor.range:
                     sendableList.append(sensor)
 
@@ -105,10 +99,12 @@ def loadBases(filename):
 # For WHERE command
 def locateSensor(idname, baseList, sensorList):
     for base in baseList:
+        print(base.baseID)
         if idname == base.baseID:
             return base
     for sensor in sensorList:
-        if idname == sensor.baseID:
+        print(sensor.id)
+        if idname == sensor.id:
             return sensor
 
 # For REACHABLE, create list of reachable sensor and base ids [ID] [XPosition] [YPosition]
@@ -123,7 +119,7 @@ def reachableList(sensor, baseList , sensorList):
     for s in sensorList:
         dist = euclideanDistance(sensor.xPos, sensor.yPos, s.xPos, s.yPos)
         if dist <= sensor.range:
-            inrange += str(s.baseID) + " " + str(s.xPos) + " " + str(s.yPos) + " "
+            inrange += str(s.id) + " " + str(s.xPos) + " " + str(s.yPos) + " "
             count += 1
     return (count, inrange)
 
@@ -147,16 +143,16 @@ def recursiveSend(origin, start, end, hopList, baseList, sensorList, connections
 
             
             if toSendBaseID == end:
-                print("{}: Sent a new message directly to {}.".format("CONTROL", end))
+                print("{}: Sent a new message directly to {}".format("CONTROL", end))
                 return
                 
             else:
-                print("{}: Sent a new message bound for {}.".format("CONTROL", end))
+                print("{}: Sent a new message bound for {}".format("CONTROL", end))
                 recursiveSend(origin, toSendBaseID, end, ["CONTROL"], baseList, sensorList, connections)
                 
 
-        elif end in [x.baseID for x in sensorList]:
-            sensor = [s for s in sensorList if s.baseID == end]
+        elif end in [x.id for x in sensorList]:
+            sensor = [s for s in sensorList if s.id == end]
             toSendBase = getNextClosestBaseStation(control, sensor.xPos, sensor.yPos, baseList, hopList)
             if toSendBase == None:
                 print("Unable to deliver message")
@@ -170,10 +166,11 @@ def recursiveSend(origin, start, end, hopList, baseList, sensorList, connections
             #     return
             
             # else:
-            print("{}: Sent a new message bound for {}.".format("CONTROL", end))
+            print("{}: Sent a new message bound for {}".format("CONTROL", end))
             recursiveSend(origin, toSendBaseID, end, ["CONTROL"], baseList, sensorList, connections)
         
     else:
+        #remember, start may not ever be a sensor
         startSite = None
         for base in baseList:
             if base.baseID == start:
@@ -181,28 +178,27 @@ def recursiveSend(origin, start, end, hopList, baseList, sensorList, connections
         
         if startSite == None:
             for sensor in sensorList:
-                if sensor.baseID == start:
+                if sensor.id == start:
                     startSite = sensor
             
         destination = ""
         if end in [x.baseID for x in baseList]:
             destination = [base for base in baseList if base.baseID == end][0]
         else:
-            destination = [sensor for sensor in sensorList if sensor.baseID == end][0]
-
+            destination = [sensor for sensor in sensorList if sensor.id == end][0]
 
         toSendBase = getNextClosestBaseStation(startSite, destination.xPos, destination.yPos, baseList, hopList)
+
         toSendSensor = getNextClosestSensor(startSite, destination.xPos, destination.yPos, sensorList, hopList)
-        
         if toSendBase == None and toSendSensor == None:
-            print("{}: Message from {} to {} could not be delivered.".format(start, origin, end))
+            print("Message couldn't be delivered")
             return
         
         #if exactly one (Base or Sensor) is non-None
         if (toSendBase != None or toSendSensor != None) and (not (toSendBase != None and toSendSensor != None)):
             if toSendBase != None:
                 if start == end:
-                    print("{}: Message from {} to {} successfully received.".format(start, origin, end))
+                    print("{}: Message from {} to {} successfully received".format(start, origin, end))
                     
                     return
                 
@@ -211,24 +207,24 @@ def recursiveSend(origin, start, end, hopList, baseList, sensorList, connections
                     hopList.append(start)
                     recursiveSend(origin, toSendBase.baseID, end, hopList, baseList, sensorList, connections)
             else:
-                if toSendSensor.baseID == end:
+                if toSendSensor.id == end:
                     if origin == start:
-                        print("{}: Sent a new message directly to {}.".format(start, end))
+                        print("{}: Sent a new message directly to {}".format(start, end))
                     else:
                         print("{}: Message from {} to {} being forwarded through {}".format(start, origin, end, start))
-                    s = connections[toSendSensor.baseID]
-                    msg = f'{origin} {toSendSensor.baseID} {end} {len(hopList)} {hopList}'
+                    s = connections[toSendSensor.id]
+                    msg = f'{origin} {toSendSensor.id} {end} {len(hopList)} {hopList}'
                     send(msg, s)
                     
                     return
                 else:
                     if origin == start:
-                        print("{}: Sent a new message bound for {}.".format(start, end))
+                        print("{}: Sent a new message bound for {}".format(start, end))
                     else:
                         print("{}: Message from {} to {} being forwarded through {}".format(start, origin, end, start))
                     
-                    s = connections[toSendSensor.baseID]
-                    msg = f'{origin} {toSendSensor.baseID} {end} {len(hopList)} {hopList}'
+                    s = connections[toSendSensor.id]
+                    msg = f'{origin} {toSendSensor.id} {end} {len(hopList)} {hopList}'
                     send(msg, s)
                     return
         
@@ -243,49 +239,29 @@ def recursiveSend(origin, start, end, hopList, baseList, sensorList, connections
                 isSensor = True
 
             if isSensor: #if we should send to a sensor (because its closer to destination)
-                if toSendSensor.baseID == end:
-                    if origin == start:
-                        print("{}: Sent a new message directly to {}.".format(start, end))
-                    else:
-                        print("{}: Message from {} to {} being forwarded through {}".format(start, origin, end, start))
-                   
-                    s = connections[toSendSensor.baseID]
-                    msg = f'{origin} {toSendSensor.baseID} {end} {len(hopList)} {hopList}'
-                    send(s, msg)
+                if toSendSensor.id == end:
+                    print("{}: Sent a new message directly to {}".format(start, end))
+                    s = connections[toSendSensor.id]
+                    msg = f'{origin} {toSendSensor.id} {end} {len(hopList)} {hopList}'
+                    send(msg, s)
                     return
                 else:
-
-                    if origin == start:
-                        print("{}: Sent a new message bound for {}.".format(start, end))
-                    else:
-                        print("{}: Message from {} to {} being forwarded through {}".format(start, origin, end, start))
-                   
-                    s = connections[toSendSensor.baseID]
-                    msg = f'DATAMESSAGE {origin} {toSendSensor.baseID} {end} {len(hopList)} {hopList}'
-                    send(s, msg)
+                    print("{}: Sent a new message bound for {}".format(start, end))
+                    s = connections[toSendSensor.id]
+                    msg = f'{origin} {toSendSensor.id} {end} {len(hopList)} {hopList}'
+                    send(msg, s)
                     return
 
             else:
-                
-                if start == end:
-                    print("{}: Message from {} to {} successfully received.".format(start, origin, end))
-                    # if origin == start:
-                    #     print("{}: Sent a new message directly to {}.".format(start, end))
-                    # else:
-                    #     print("{}: Message from {} to {} being forwarded through {}".format(start, origin, end, start))
-                   
-                    
+                if toSendBase.baseID == end:
+                    print("{}: Message from {} to {} succesfully received.".format(toSendBase.baseID, start, toSendBase.baseID))
                     return
                 else:
-
-                    if origin == start:
-                        print("{}: Sent a new message bound for {}.".format(start, end))
-                    else:
-                        print("{}: Message from {} to {} being forwarded through {}".format(start, origin, end, start))
-                   
-                    hopList.append(start)
+                    print("{}: Sent a new message bound for {}".format(start, end))
+                    hopList.append(toSendBase.baseID)
                     recursiveSend(origin, toSendBase.baseID, end, hopList, baseList, sensorList, connections)
-                            
+                    return
+        
 
 def run_server():
     if len(sys.argv) != 3:
@@ -313,7 +289,7 @@ def run_server():
         if sys.stdin in fd:
             # Get user input
             command = sys.stdin.readline()
-            command = command.strip("\n").split(" ")
+            command = command.split(" ")
 
             if command[0] == "SENDDATA":
                 originID = command[1]
@@ -322,6 +298,7 @@ def run_server():
             
             if command[0] == "QUIT":
                 listeningsocket.close()
+                
                 break
 
         # New incoming connection
@@ -349,7 +326,7 @@ def run_server():
                     # update position if already in list
                     found = False
                     for sensor in sensorList:
-                        if sensor.baseID == splitmessage[1]:
+                        if sensor.id == splitmessage[1]:
                             found = True
                             sensor.xPos = int(splitmessage[3])
                             sensor.yPos = int(splitmessage[4])
@@ -366,14 +343,14 @@ def run_server():
                     message = DataMessage.DataMessageFactory(message)
                     
                     
-                    recursiveSend(message.originID, message.nextID, message.destinationID, message.hopList, baseList, sensorList, connections)                  
+                    recursiveSend(message.originID, message.originID, message.destinationID, message.hopList, baseList, sensorList, connections)                  
             
             else:
                 print("Client disconnected")
                 break
 
-    for conn in connections.keys():
-        connections[conn][0].close()
+    for conn in connections:
+        conn.close()
 
 if __name__ == '__main__':
     run_server()

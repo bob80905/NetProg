@@ -26,7 +26,8 @@ class DataMessage:
 
 #given the output on toString, produce a DataMessage object
 def DataMessageFactory(datastr):
-    data = datastr.split(" ", 5)
+    data = datastr.split(" ")
+    hopListString = data[5:]
     length = int(data[4])
     realHopList = eval(data[5])
     # i = 0

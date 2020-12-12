@@ -104,7 +104,7 @@ def run_client():
         #We received something from the Control Server
         if connectsocket in readable:
             msg = connectsocket.recv(1024).decode()
-            splitmsg = msg.split(" ", 5)
+            splitmsg = msg.split(" ")
             
             if splitmsg[0] == "DATAMESSAGE":
                 if splitmsg[3] == sensorid:
